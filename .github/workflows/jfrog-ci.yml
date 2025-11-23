@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
   packages: write
   security-events: write
@@ -38,8 +37,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JF_URL }}
-        with:
-          oidc-provider-name: yanirw/CI-demo@github
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
 
       - name: Generate image tag
         id: image-tag
@@ -48,9 +46,16 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Generated image tag: $TAG"
 
+      - name: Validate JF_URL
+        run: |
+          if [ -z "${{ env.JF_URL }}" ]; then
+            echo "Error: JF_URL environment variable is not set!"
+            exit 1
+          fi
+
       - name: Configure JFrog CLI
         run: |
-          jf config add default-server --url ${{ env.JF_URL }} --interactive=false
+          jf config add default-server --url "${{ env.JF_URL }}" --interactive=false
 
       - name: Configure Maven for JFrog
         run: |
