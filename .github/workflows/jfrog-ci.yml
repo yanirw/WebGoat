@@ -14,6 +14,8 @@ permissions:
 
 env:
   JF_URL: ${{ secrets.JF_URL }}
+  JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+  JF_USER: ${{ secrets.JF_USER }}
   DOCKER_REPO: winnik.jfrog.io/demo-docker
   IMAGE_NAME: webgoat
   BUILD_NAME: webgoat-build
@@ -37,8 +39,6 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JF_URL }}
-          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
-          JF_USER: ${{ secrets.JF_USER }}
 
       - name: Generate image tag
         id: image-tag
