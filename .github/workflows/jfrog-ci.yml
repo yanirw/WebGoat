@@ -14,8 +14,6 @@ permissions:
 
 env:
   JF_URL: ${{ secrets.JF_URL }}
-  JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
-  JF_USER: ${{ secrets.JF_USER }}
   DOCKER_REPO: winnik.jfrog.io/demo-docker
   IMAGE_NAME: webgoat
   BUILD_NAME: webgoat-build
@@ -39,6 +37,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
 
       - name: Generate image tag
         id: image-tag
@@ -61,14 +60,6 @@ jobs:
         run: |
           # Run Maven build using JFrog CLI wrapper
           jf mvn clean install -DskipTests
-
-      - name: Docker login to JFrog
-        run: |
-          # Extract registry from JF_URL or DOCKER_REPO
-          # Assuming DOCKER_REPO starts with the registry domain
-          REGISTRY=$(echo "${{ env.DOCKER_REPO }}" | cut -d'/' -f1)
-          echo "Logging into JFrog Docker registry: $REGISTRY"
-          jf docker login $REGISTRY
 
       - name: Build Docker image
         env:
