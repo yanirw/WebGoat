@@ -38,6 +38,7 @@ jobs:
         env:
           JF_URL: ${{ env.JF_URL }}
           JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+          JF_USER: ${{ secrets.JF_USER }}
 
       - name: Generate image tag
         id: image-tag
