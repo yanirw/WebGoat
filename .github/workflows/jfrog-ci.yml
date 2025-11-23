@@ -46,21 +46,15 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Generated image tag: $TAG"
 
-      - name: Validate JF_URL
-        run: |
-          if [ -z "${{ env.JF_URL }}" ]; then
-            echo "Error: JF_URL environment variable is not set!"
-            exit 1
-          fi
-
       - name: Configure JFrog CLI
         run: |
           jf config add default-server --url "${{ env.JF_URL }}" --interactive=false
 
       - name: Configure Maven for JFrog
         run: |
-          # Configure Maven repositories (adjust repo names if needed)
-          jf mvn-config --repo-resolve-releases=maven --repo-resolve-snapshots=maven --repo-deploy-releases=libs-release-local --repo-deploy-snapshots=libs-snapshot-local
+          # Configure Maven to use JFrog CLI wrapper but default repositories (Central)
+          # This avoids auth issues with Reference Tokens if no username is provided
+          jf mvn-config
 
       - name: Maven Build
         run: |
