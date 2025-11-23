@@ -1,4 +1,4 @@
-name: "JFrog CI/CD"
+name: "Build and push Docker image to JFrog"
 
 on:
   push:
@@ -13,17 +13,15 @@ permissions:
   security-events: write
 
 env:
-  JF_URL: ${{ secrets.JF_URL }}
+  JF_URL: ${{ vars.JF_URL }}
   DOCKER_REPO: winnik.jfrog.io/demo-docker
   IMAGE_NAME: webgoat
   BUILD_NAME: webgoat-build
   JFROG_CLI_LOG_LEVEL: "DEBUG"
 
 jobs:
-  build-and-scan:
+  build-and-tag:
     runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.image-tag.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,70 +34,27 @@ jobs:
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
-          JF_URL: ${{ env.JF_URL }}
+          JF_URL: ${{ vars.JF_URL }}
           JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
 
-      - name: Generate image tag
-        id: image-tag
-        run: |
-          TAG=${GITHUB_SHA::8}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Generated image tag: $TAG"
-
-      - name: Configure JFrog CLI
-        run: |
-          jf config add default-server --url "${{ env.JF_URL }}" --interactive=false
-
-      - name: Configure Maven for JFrog
-        run: |
-          # Configure Maven to use JFrog CLI wrapper but default repositories (Central)
-          # This avoids auth issues with Reference Tokens if no username is provided
-          jf mvn-config
-
-      - name: Maven Build
-        run: |
-          # Run Maven build using JFrog CLI wrapper
-          jf mvn clean install -DskipTests
-
-      - name: Build Docker image
+      - name: Build Tag and push Docker Image
         env:
-          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+          IMAGE_NAME: ${{ env.DOCKER_REPO }}/webgoat:${{ github.run_number }}
         run: |
-          FULL_IMAGE="${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}"
-          echo "Building image: $FULL_IMAGE:$IMAGE_TAG"
-          jf docker build -t $FULL_IMAGE:$IMAGE_TAG .
+          jf docker build -t $IMAGE_NAME .
+          jf docker push $IMAGE_NAME
 
-      - name: Local X-ray Docker scan
+      - name: Publish Build info With JFrog CLI
         env:
-          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: |
-          FULL_IMAGE="${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}"
-          echo "🛡️ Scanning Docker image locally before push: $FULL_IMAGE:$IMAGE_TAG"
-          # Using the watch provided in the example, or a generic one if not specified
-          jf docker scan $FULL_IMAGE:$IMAGE_TAG --watches="docker-security-watch" --fail=false
-
-      - name: Push Docker image
-        env:
-          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: |
-          FULL_IMAGE="${{ env.DOCKER_REPO }}/${{ env.IMAGE_NAME }}"
-          echo "Pushing image: $FULL_IMAGE:$IMAGE_TAG"
-          jf docker push $FULL_IMAGE:$IMAGE_TAG
-
-      - name: Publish build info to JFrog
-        env:
-          JFROG_CLI_BUILD_NAME: ${{ env.BUILD_NAME }}
+          # Generated and maintained by GitHub
+          JFROG_CLI_BUILD_NAME: webgoat-build
+          # JFrog organization secret
           JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          echo "Publishing build info to JFrog..."
+          # Export the build name and build number
+          # Collect environment variables for the build
           jf rt build-collect-env
+          # Collect VCS details from git and add them to the build
           jf rt build-add-git
+          # Publish build info
           jf rt build-publish
-
-      - name: XRay security scan
-        env:
-          JFROG_CLI_BUILD_NAME: ${{ env.BUILD_NAME }}
-          JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
-        run: |
-          echo "🛡️ Scanning build against XRay policies"
-          jf build-scan --extended-table --fail=false || echo "⚠️ Build scan skipped or failed"
